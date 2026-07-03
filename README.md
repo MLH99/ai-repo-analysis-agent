@@ -68,34 +68,7 @@ This project solves that by combining **semantic code search** with an **AI agen
 
 ## Arkitektur
 
-```mermaid
-flowchart TB
-    Input[repo/ — din kodbas] --> Indexing
-    
-    subgraph Indexing
-        L[loader.py] --> S[splitter.py]
-        S --> E[OpenAI Embeddings]
-        E --> F[(FAISS Index)]
-    end
-
-    subgraph Agent
-        P[Plan] --> SE[Search]
-        SE --> RE[Read Files]
-        RE --> AN[Answer]
-    end
-
-    subgraph Tools
-        T1[search_codebase]
-        T2[read_file]
-        T3[grep_code]
-        T4[list_files]
-    end
-
-    API[FastAPI]
-
-    F --> T1
     T1 & T2 & T3 & T4 --> Agent
-    Agent --> API
 
 ## Quick Start
 

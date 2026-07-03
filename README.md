@@ -66,9 +66,8 @@ This project solves that by combining **semantic code search** with an **AI agen
 
 ## Architecture
 
-## Arkitektur
+<img width="366" height="714" alt="3ec2cb956fca27102bb27c48427ac079" src="https://github.com/user-attachments/assets/c541c935-3372-4393-9d0f-6eab0ccbf13e" />
 
-    T1 & T2 & T3 & T4 --> Agent
 
 ## Quick Start
 

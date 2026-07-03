@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      REPO_PATH: repo
+      INDEX_PATH: data/faiss_index
+    volumes:
+      - ./data:/app/data
+      - ./repo:/app/repo
+    restart: unless-stopped

@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.git/
+.gitignore
+data/faiss_index/
+.env
+*.md
+ask.bat
+build_index.bat
+search.bat
+run_api.bat

@@ -80,7 +80,7 @@ This project solves that by combining **semantic code search** with an **AI agen
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-repo-analysis-agent.git
+git clone https://github.com/MLH99/ai-repo-analysis-agent.git
 cd ai-repo-analysis-agent
 
 python -m venv .venv
@@ -258,7 +258,7 @@ ai-repo-analysis-agent/
 
 ## License
 
-This project is open source. Add a license before publishing (e.g. MIT).
+
 
 ---
 

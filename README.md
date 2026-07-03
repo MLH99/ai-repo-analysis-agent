@@ -66,6 +66,8 @@ This project solves that by combining **semantic code search** with an **AI agen
 
 ## Architecture
 
+## Arkitektur
+
 ```mermaid
 flowchart TB
     Input[repo/ — din kodbas] --> Indexing
@@ -94,7 +96,6 @@ flowchart TB
     F --> T1
     T1 & T2 & T3 & T4 --> Agent
     Agent --> API
----
 
 ## Quick Start
 

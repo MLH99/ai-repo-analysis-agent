@@ -66,7 +66,6 @@ This project solves that by combining **semantic code search** with an **AI agen
 
 ## Architecture
 
-```mermaid
 flowchart TB
     subgraph Input
         R[repo/ — your codebase]
@@ -78,7 +77,7 @@ flowchart TB
         E --> F[(FAISS Index)]
     end
 
-    subgraph Agent
+    subgraph Agent_Logic
         P[Plan] --> SE[Search]
         SE --> RE[Read Files]
         RE --> AN[Answer]
@@ -91,15 +90,14 @@ flowchart TB
         T4[list_files]
     end
 
-    subgraph API
-        API[FastAPI]
+    subgraph API_Layer
+        API[FastAPI Endpoint]
     end
 
     R --> L
     F --> T1
-    T1 & T2 & T3 & T4 --> Agent
-    Agent --> API
-```
+    T1 & T2 & T3 & T4 --> Agent_Logic
+    Agent_Logic --> API_Layer
 
 ---
 

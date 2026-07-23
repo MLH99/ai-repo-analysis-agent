@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Repo Analysis Agent</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">◇</div>
+        <div>
+          <h1>Repo Analysis Agent</h1>
+          <p>Index a Git repository and ask questions about its codebase</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="card">
+        <h2>Configuration</h2>
+        <div class="form-grid">
+          <label class="field field-full">
+            <span>OpenAI API Key</span>
+            <input id="apiKey" type="password" placeholder="sk-..." autocomplete="off" />
+          </label>
+          <label class="field field-full">
+            <span>Git Repository URL</span>
+            <input id="gitUrl" type="url" placeholder="https://github.com/user/repository.git" />
+          </label>
+          <label class="field">
+            <span>Branch</span>
+            <input id="branch" type="text" placeholder="main" />
+          </label>
+          <label class="field">
+            <span>Model</span>
+            <input id="model" type="text" value="gpt-4o-mini" />
+          </label>
+        </div>
+        <button id="indexBtn" class="btn btn-primary">Index Repository</button>
+      </section>
+
+      <section class="card">
+        <h2>Progress</h2>
+        <ul id="indexSteps" class="steps">
+          <li data-step="clone"><span class="indicator"></span><span class="label">Clone repository</span></li>
+          <li data-step="load"><span class="indicator"></span><span class="label">Load source files</span></li>
+          <li data-step="chunk"><span class="indicator"></span><span class="label">Split code into chunks</span></li>
+          <li data-step="embed"><span class="indicator"></span><span class="label">Create embeddings</span></li>
+          <li data-step="faiss"><span class="indicator"></span><span class="label">Build FAISS index</span></li>
+          <li data-step="save"><span class="indicator"></span><span class="label">Save index</span></li>
+        </ul>
+        <p id="indexStatus" class="status-text">Waiting to start...</p>
+      </section>
+
+      <section class="card chat-card">
+        <div class="chat-header">
+          <h2>Chat</h2>
+          <button id="clearChatBtn" class="btn btn-ghost" type="button">Clear chat</button>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+          <p class="chat-empty">Ask a question about the indexed repository. Follow-up questions are supported.</p>
+        </div>
+
+        <label class="field field-full">
+          <span>Your message</span>
+          <textarea id="question" rows="3" placeholder="How does user authentication work?"></textarea>
+        </label>
+        <div class="chat-actions">
+          <button id="askBtn" class="btn btn-secondary" disabled>Send</button>
+        </div>
+
+        <ul id="askSteps" class="steps ask-steps hidden">
+          <li data-step="plan"><span class="indicator"></span><span class="label">Plan analysis</span></li>
+          <li data-step="search"><span class="indicator"></span><span class="label">Search codebase</span></li>
+          <li data-step="read"><span class="indicator"></span><span class="label">Read source files</span></li>
+          <li data-step="answer"><span class="indicator"></span><span class="label">Generate answer</span></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>AI Repository Analysis Agent</span>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -52,7 +52,7 @@ def list_repo_files(
     if not target.is_dir():
         raise FileNotFoundError(f"Katalogen hittades inte: {directory}")
 
-    lines: list[str] = [f"Filer under {target.relative_to(root)}:"]
+    lines: list[str] = [f"Files under {target.relative_to(root)}:"]
     count = 0
 
     for file_path in sorted(target.rglob("*")):
@@ -68,11 +68,11 @@ def list_repo_files(
         count += 1
 
         if count >= max_files:
-            lines.append(f"... (visar max {max_files} filer)")
+            lines.append(f"... (showing max {max_files} files)")
             break
 
     if count == 0:
-        return f"Inga kodfiler hittades under {directory}"
+        return f"No code files found under {directory}"
 
     return "\n".join(lines)
 
@@ -83,7 +83,7 @@ def read_repo_file(repo_path: str | Path, file_path: str) -> str:
     target = safe_repo_file(root, file_path)
     content = target.read_text(encoding="utf-8")
     relative = target.relative_to(root).as_posix()
-    return f"Fil: {relative}\n\n{content}"
+    return f"File: {relative}\n\n{content}"
 
 
 def grep_repo_code(
@@ -123,9 +123,9 @@ def grep_repo_code(
 
 def _format_grep_results(pattern: str, matches: list[str]) -> str:
     if not matches:
-        return f"Inga träffar för mönstret: {pattern}"
+        return f"No matches for pattern: {pattern}"
 
-    header = f"Träffar för '{pattern}' ({len(matches)}):"
+    header = f"Matches for '{pattern}' ({len(matches)}):"
     return "\n".join([header, *matches])
 
 
@@ -134,7 +134,7 @@ def extract_sources_from_search_results(search_results: str) -> list[str]:
     sources: list[str] = []
 
     for line in search_results.splitlines():
-        if not line.startswith("--- Resultat"):
+        if not line.startswith("--- Result"):
             continue
 
         parts = [part.strip() for part in line.split("|")]

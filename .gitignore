@@ -4,5 +4,9 @@ venv/
 __pycache__/
 *.pyc
 data/faiss_index/
+repo_test_clone/
+repo/*
+!repo/README.md
+!repo/.gitkeep
 .pytest_cache/
 .mypy_cache/

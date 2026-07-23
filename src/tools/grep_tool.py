@@ -21,8 +21,8 @@ def create_grep_code_tool(repo_path: str | Path) -> StructuredTool:
         func=grep_code,
         name="grep_code",
         description=(
-            "Sök exakt text eller regex i kodbasen. "
-            "Bra för funktionsnamn, klasser eller strängar, "
-            "t.ex. pattern='authenticate_user'."
+            "Search for exact text or regex in the codebase. "
+            "Good for function names, classes, or strings, "
+            "e.g. pattern='authenticate_user'."
         ),
     )

@@ -1,4 +1,4 @@
-"""LangGraph med tydliga steg: planera → sök → läs → svara."""
+"""LangGraph flow: plan → search → read → answer."""
 
 from __future__ import annotations
 
@@ -10,7 +10,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 
+from src.conversation import ChatMessage, build_search_query, format_history_for_prompt
 from src.indexer import DEFAULT_INDEX_PATH
+from src.openai_context import ProgressCallback, emit_progress, use_openai_api_key
+from src.prompts import ANSWER_PROMPT, PLAN_PROMPT
 from src.repo import (
     DEFAULT_REPO_PATH,
     extract_sources_from_search_results,
@@ -20,26 +23,10 @@ from src.tools.search_tool import create_search_codebase_tool
 
 load_dotenv()
 
-PLAN_PROMPT = """Du planerar hur en kodbas ska analyseras.
-
-Gör en kort plan med:
-1. Vad användaren vill veta
-2. Vilken semantisk sökfråga som ska användas (hela frågan)
-3. Vilka filtyper eller områden som troligen är relevanta
-
-Håll planen kort och konkret."""
-
-
-ANSWER_PROMPT = """Du svarar på frågor om en indexerad kodbas.
-
-Använd planen, sökresultaten och filinnehållet nedan.
-Basera svaret på faktisk kod och nämn alltid källfiler.
-Svara på svenska om inte användaren skriver på annat språk.
-Om informationen inte räcker, säg det tydligt."""
-
 
 class AnalysisState(TypedDict):
     question: str
+    history: list[ChatMessage]
     repo_path: str
     index_path: str
     k: int
@@ -54,30 +41,43 @@ def _get_llm(model: str) -> ChatOpenAI:
     return ChatOpenAI(model=model, temperature=0)
 
 
+def _format_plan_input(state: AnalysisState) -> str:
+    history_text = format_history_for_prompt(state["history"])
+    if not history_text:
+        return state["question"]
+
+    return (
+        "Conversation history:\n"
+        f"{history_text}\n\n"
+        f"Current question: {state['question']}"
+    )
+
+
 def plan_step(state: AnalysisState) -> dict:
-    """Steg 1: planera hur frågan ska besvaras."""
+    """Step 1: plan how to answer the question."""
     llm = _get_llm(state["model"])
     response = llm.invoke(
         [
             SystemMessage(content=PLAN_PROMPT),
-            HumanMessage(content=state["question"]),
+            HumanMessage(content=_format_plan_input(state)),
         ]
     )
     return {"plan": response.content}
 
 
 def search_step(state: AnalysisState) -> dict:
-    """Steg 2: semantisk sökning i FAISS-index."""
+    """Step 2: semantic search in the FAISS index."""
     search_tool = create_search_codebase_tool(
         index_path=state["index_path"],
         k=state["k"],
     )
-    results = search_tool.invoke({"query": state["question"]})
+    query = build_search_query(state["question"], state["history"])
+    results = search_tool.invoke({"query": query})
     return {"search_results": results}
 
 
 def read_step(state: AnalysisState) -> dict:
-    """Steg 3: läs hela filer som hittades i sökningen."""
+    """Step 3: read full files found during search."""
     sources = extract_sources_from_search_results(state["search_results"])
     chunks: list[str] = []
 
@@ -85,27 +85,31 @@ def read_step(state: AnalysisState) -> dict:
         try:
             chunks.append(read_repo_file(state["repo_path"], source))
         except (FileNotFoundError, ValueError) as error:
-            chunks.append(f"Fil: {source}\n\nKunde inte läsas: {error}")
+            chunks.append(f"File: {source}\n\nCould not read: {error}")
 
     if not chunks:
-        return {"file_contents": "Inga filer kunde läsas från sökresultaten."}
+        return {"file_contents": "No files could be read from the search results."}
 
     return {"file_contents": "\n\n".join(chunks)}
 
 
 def answer_step(state: AnalysisState) -> dict:
-    """Steg 4: syntetisera ett slutgiltigt svar."""
+    """Step 4: synthesize the final answer."""
     llm = _get_llm(state["model"])
-    context = f"""Fråga:
+    history_text = format_history_for_prompt(state["history"])
+    history_block = (
+        f"Conversation history:\n{history_text}\n\n" if history_text else ""
+    )
+    context = f"""{history_block}Current question:
 {state["question"]}
 
 Plan:
 {state["plan"]}
 
-Sökresultat:
+Search results:
 {state["search_results"]}
 
-Innehåll från filer:
+File contents:
 {state["file_contents"]}"""
 
     response = llm.invoke(
@@ -118,7 +122,7 @@ Innehåll från filer:
 
 
 def build_analysis_graph():
-    """Bygger grafen plan → search → read → answer."""
+    """Build the plan → search → read → answer graph."""
     graph = StateGraph(AnalysisState)
 
     graph.add_node("plan", plan_step)
@@ -141,12 +145,15 @@ def run_analysis_graph(
     index_path: str | Path = DEFAULT_INDEX_PATH,
     k: int = 4,
     model: str = "gpt-4o-mini",
+    progress_callback: ProgressCallback | None = None,
+    openai_api_key: str | None = None,
+    history: list[ChatMessage] | None = None,
 ) -> str:
-    """Kör hela analysgrafen och returnerar svaret."""
-    graph = build_analysis_graph()
-    result = graph.invoke(
-        {
+    """Run the full analysis graph and return the answer."""
+    with use_openai_api_key(openai_api_key):
+        state: AnalysisState = {
             "question": question,
+            "history": history or [],
             "repo_path": str(repo_path),
             "index_path": str(index_path),
             "k": k,
@@ -156,5 +163,21 @@ def run_analysis_graph(
             "file_contents": "",
             "answer": "",
         }
-    )
-    return result["answer"]
+
+        emit_progress(progress_callback, "plan", "Planning analysis", "running")
+        state.update(plan_step(state))
+        emit_progress(progress_callback, "plan", "Analysis plan ready", "done")
+
+        emit_progress(progress_callback, "search", "Searching codebase", "running")
+        state.update(search_step(state))
+        emit_progress(progress_callback, "search", "Relevant code found", "done")
+
+        emit_progress(progress_callback, "read", "Reading source files", "running")
+        state.update(read_step(state))
+        emit_progress(progress_callback, "read", "Files loaded", "done")
+
+        emit_progress(progress_callback, "answer", "Generating answer", "running")
+        state.update(answer_step(state))
+        emit_progress(progress_callback, "answer", "Answer ready", "done")
+
+        return state["answer"]

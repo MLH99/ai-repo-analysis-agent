@@ -17,7 +17,7 @@ def create_list_files_tool(repo_path: str | Path) -> StructuredTool:
         func=list_files,
         name="list_files",
         description=(
-            "Lista filer i kodbasen. "
-            "Använd för att få överblick innan du söker eller läser filer."
+            "List files in the codebase. "
+            "Use to get an overview before searching or reading files."
         ),
     )

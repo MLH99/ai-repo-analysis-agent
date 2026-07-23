@@ -22,8 +22,8 @@ def main() -> None:
     parser.add_argument(
         "question",
         nargs="?",
-        default="Var hanteras autentisering?",
-        help="Fråga om kodbasen (standard: 'Var hanteras autentisering?')",
+        default="Where is authentication handled?",
+        help="Question about the codebase (default: 'Where is authentication handled?')",
     )
     parser.add_argument(
         "--index",
@@ -56,7 +56,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    print(f"Fråga: {args.question}\n")
+    print(f"Question: {args.question}\n")
     print("=" * 60)
 
     answer = ask_question(

@@ -1,4 +1,4 @@
-"""Bygger FAISS-index från en lokal kodbas."""
+"""Bygger FAISS-index från en lokal kodbas eller Git-URL."""
 
 import argparse
 import sys
@@ -23,7 +23,17 @@ def main() -> None:
         "--repo",
         type=Path,
         default=Path("repo"),
-        help="Sökväg till kodbasen (standard: repo)",
+        help="Sökväg till lokal kodbas eller klon-mål (standard: repo)",
+    )
+    parser.add_argument(
+        "--git-url",
+        type=str,
+        help="Klona ett Git-repo till --repo innan indexering",
+    )
+    parser.add_argument(
+        "--branch",
+        type=str,
+        help="Branch att klona (valfritt, används med --git-url)",
     )
     parser.add_argument(
         "--index",
@@ -33,7 +43,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    build_faiss_index(repo_path=args.repo, index_path=args.index)
+    build_faiss_index(
+        repo_path=args.repo,
+        index_path=args.index,
+        git_url=args.git_url,
+        branch=args.branch,
+    )
 
 
 if __name__ == "__main__":

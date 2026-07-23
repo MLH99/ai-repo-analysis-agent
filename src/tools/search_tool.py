@@ -28,8 +28,8 @@ def create_search_codebase_tool(
         func=search_codebase,
         name="search_codebase",
         description=(
-            "Sök i den indexerade kodbasen med semantisk sökning. "
-            "Använd detta för att hitta var funktionalitet implementeras, "
-            "t.ex. autentisering, databas eller API-endpoints."
+            "Search the indexed codebase using semantic search. "
+            "Use this to find where functionality is implemented, "
+            "e.g. authentication, database, or API endpoints."
         ),
     )

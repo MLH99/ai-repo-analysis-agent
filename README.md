@@ -1,6 +1,6 @@
 # AI Repository Analysis Agent
 
-An AI-powered agent that analyzes software repositories using **Retrieval-Augmented Generation (RAG)**, **LangChain**, and **LangGraph**. Ask natural-language questions about a codebase and get answers grounded in actual source code — with file references.
+An AI-powered agent that analyzes software repositories using **Retrieval-Augmented Generation (RAG)**, **LangChain**, and **LangGraph**. Index a Git repository, ask natural-language questions, and get answers grounded in actual source code — with file references and follow-up chat.
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![LangChain](https://img.shields.io/badge/LangChain-1.x-green.svg)](https://www.langchain.com/)
@@ -27,11 +27,12 @@ This project solves that by combining **semantic code search** with an **AI agen
 
 ## What It Does
 
-1. **Indexes** a local codebase into a FAISS vector store using OpenAI embeddings
-2. **Searches** semantically — find relevant code by meaning, not just exact text
-3. **Analyzes** via a LangGraph agent with tools for search, file reading, grep, and listing
-4. **Answers** questions like *"Where is authentication handled?"* with cited files and explanations
-5. **Exposes** everything through a FastAPI REST API and Docker for easy deployment
+1. **Clones or loads** a codebase from a Git URL or local `repo/` folder
+2. **Indexes** code into a FAISS vector store using OpenAI embeddings
+3. **Searches** semantically — find relevant code by meaning, not just exact text
+4. **Analyzes** via a LangGraph agent with tools for search, file reading, grep, and listing
+5. **Answers** questions with cited files and supports **follow-up conversation**
+6. **Exposes** everything through a FastAPI REST API, web UI, and Docker
 
 ---
 
@@ -40,13 +41,16 @@ This project solves that by combining **semantic code search** with an **AI agen
 | Feature | Description |
 |---------|-------------|
 | **RAG pipeline** | Load → chunk → embed → store in FAISS |
-| **Language-aware splitting** | LangChain splitters tuned for Python, JS, TS, Go, Rust, and more |
+| **Git clone input** | Index directly from a GitHub/Git URL |
+| **Language-aware splitting** | LangChain splitters for Python, JS, TS, Go, Rust, and more |
 | **Semantic search** | Natural-language queries over indexed code |
 | **LangGraph agent** | Structured flow: plan → search → read → answer |
 | **Agent tools** | `search_codebase`, `read_file`, `grep_code`, `list_files` |
-| **REST API** | `POST /ask`, `POST /index`, `GET /health` |
+| **Follow-up chat** | Multi-turn conversation with history-aware answers |
+| **Streaming API** | Live progress for indexing and Q&A via SSE |
+| **Web UI** | Minimal grey-blue interface with step indicators |
+| **REST API** | `POST /ask`, `POST /index`, streaming endpoints, `GET /health` |
 | **Docker support** | One-command setup with `docker compose up` |
-| **Drop-in repo folder** | Place any codebase in `repo/` and go |
 
 ---
 
@@ -59,6 +63,7 @@ This project solves that by combining **semantic code search** with an **AI agen
 | **Embeddings** | OpenAI `text-embedding-3-small` |
 | **Vector database** | FAISS (local, persisted to disk) |
 | **API** | FastAPI + Uvicorn |
+| **Frontend** | HTML, CSS, JavaScript (static) |
 | **Containerization** | Docker, Docker Compose |
 | **Config** | python-dotenv |
 
@@ -69,11 +74,13 @@ This project solves that by combining **semantic code search** with an **AI agen
 ```mermaid
 flowchart TB
     subgraph Input
-        R[repo/ — your codebase]
+        G[Git URL]
+        R[repo/ folder]
     end
 
     subgraph Indexing
-        L[loader.py] --> S[splitter.py]
+        C[git_clone.py] --> L[loader.py]
+        L --> S[splitter.py]
         S --> E[OpenAI Embeddings]
         E --> F[(FAISS Index)]
     end
@@ -84,21 +91,16 @@ flowchart TB
         RE --> AN[Answer]
     end
 
-    subgraph Tools
-        T1[search_codebase]
-        T2[read_file]
-        T3[grep_code]
-        T4[list_files]
-    end
-
-    subgraph API
+    subgraph Client
+        UI[Web UI]
         API[FastAPI]
     end
 
+    G --> C
     R --> L
-    F --> T1
-    T1 & T2 & T3 & T4 --> Agent
+    F --> SE
     Agent --> API
+    API --> UI
 ```
 
 ---
@@ -109,12 +111,13 @@ flowchart TB
 
 - Python 3.12+
 - [OpenAI API key](https://platform.openai.com/api-keys)
+- Git (for cloning repositories)
 - Docker *(optional)*
 
 ### 1. Clone & install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/ai-repo-analysis-agent.git
+git clone https://github.com/MLH99/ai-repo-analysis-agent.git
 cd ai-repo-analysis-agent
 
 python -m venv .venv
@@ -131,29 +134,41 @@ cp .env.example .env
 # Add your OpenAI API key to .env
 ```
 
-### 3. Add a codebase
+### 3. Index a repository
 
-Place your source files in `repo/`, or try the included demo:
+**Option A — clone from Git:**
 
 ```bash
-# Windows (PowerShell)
-Copy-Item -Recurse test_project\* repo\
-
-# macOS / Linux
-cp -r test_project/. repo/
+python scripts/build_index.py --git-url https://github.com/user/repository.git
 ```
 
-### 4. Build the index
+**Option B — use local files in `repo/`:**
 
 ```bash
+# copy your project into repo/, then:
 python scripts/build_index.py
 ```
 
-### 5. Ask a question
+**Option C — use the included demo:**
+
+```bash
+Copy-Item -Recurse test_project\* repo\   # Windows
+python scripts/build_index.py
+```
+
+### 4. Ask a question
 
 ```bash
 python scripts/ask.py "Where is authentication handled?"
 ```
+
+### 5. Use the Web UI
+
+```bash
+python scripts/run_api.py
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000), enter your API key and Git URL, index the repo, and start chatting.
 
 ---
 
@@ -164,10 +179,22 @@ python scripts/ask.py "Where is authentication handled?"
 | Command | Description |
 |---------|-------------|
 | `python scripts/build_index.py` | Index the codebase in `repo/` |
+| `python scripts/build_index.py --git-url URL` | Clone a repo, then index it |
+| `python scripts/clone_repo.py URL` | Clone only (no indexing) |
 | `python scripts/search.py "query"` | Raw semantic search (no LLM) |
 | `python scripts/ask.py "query"` | Ask the agent (graph mode) |
 | `python scripts/ask.py "query" --mode react` | Ask with all tools (flexible) |
-| `python scripts/run_api.py` | Start the FastAPI server |
+| `python scripts/run_api.py` | Start the FastAPI server + Web UI |
+
+### Web UI
+
+The UI supports:
+
+- OpenAI API key input (sent per request, not stored server-side)
+- Git repository URL and branch
+- Live indexing progress with step indicators
+- Chat interface with follow-up questions
+- Clear chat history
 
 ### API
 
@@ -177,35 +204,44 @@ Start the server:
 python scripts/run_api.py
 ```
 
-Open interactive docs at **http://127.0.0.1:8000/docs**
+- **Web UI:** [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Swagger docs:** [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/health` | Health check |
-| `POST` | `/ask` | Ask a question about the codebase |
-| `POST` | `/index` | Re-index a codebase |
+| `POST` | `/ask` | Ask a question |
+| `POST` | `/ask/stream` | Ask with streaming progress (SSE) |
+| `POST` | `/index` | Index a codebase |
+| `POST` | `/index/stream` | Index with streaming progress (SSE) |
 
-**Example — ask a question:**
+**Ask with conversation history:**
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ask \
   -H "Content-Type: application/json" \
-  -d '{"question": "Where is authentication handled?"}'
+  -d '{
+    "question": "Show me the login endpoint",
+    "history": [
+      {"role": "user", "content": "How does authentication work?"},
+      {"role": "assistant", "content": "Authentication is handled in app/auth.py..."}
+    ]
+  }'
 ```
 
-**Example — re-index:**
+**Clone and index from GitHub:**
 
 ```bash
 curl -X POST http://127.0.0.1:8000/index \
   -H "Content-Type: application/json" \
-  -d '{"repo_path": "repo"}'
+  -d '{"git_url": "https://github.com/user/repository.git", "branch": "main"}'
 ```
 
 ### Docker
 
 ```bash
-# 1. Add your code to repo/
-# 2. Set OPENAI_API_KEY in .env
+# 1. Set OPENAI_API_KEY in .env
+# 2. Optionally add code to repo/, or index via the UI/API after startup
 docker compose up --build
 ```
 
@@ -214,37 +250,30 @@ docker compose up --build
 | `./repo` | Your codebase (mount point) |
 | `./data` | Persisted FAISS index |
 
-If `repo/` is empty, the API starts but indexing must be triggered manually via `POST /index` after adding files.
-
 ---
 
 ## Project Structure
 
 ```
 ai-repo-analysis-agent/
-├── repo/                  # ← Put your codebase here
+├── repo/                  # ← Put your codebase here (not committed)
 ├── test_project/          # Optional demo project
 ├── data/                  # FAISS index (generated)
+├── static/                # Web UI
 ├── src/
+│   ├── git_clone.py       # Clone Git repositories
+│   ├── conversation.py    # Multi-turn chat helpers
 │   ├── loader.py          # Load source files
 │   ├── splitter.py        # Language-aware chunking
 │   ├── indexer.py         # Build FAISS index
 │   ├── search.py          # Semantic search
 │   ├── agent.py           # Agent entry point
-│   ├── repo.py            # File ops: read, grep, list
-│   ├── graph/
-│   │   └── agent_graph.py # LangGraph: plan → search → read → answer
+│   ├── prompts.py         # Shared LLM prompts
+│   ├── graph/             # LangGraph pipeline
 │   ├── tools/             # LangChain tools
-│   └── api/
-│       ├── app.py         # FastAPI application
-│       └── schemas.py     # Request/response models
+│   └── api/               # FastAPI application
 ├── scripts/
-│   ├── build_index.py
-│   ├── search.py
-│   ├── ask.py
-│   └── run_api.py
 ├── docker/
-│   └── entrypoint.sh
 ├── Dockerfile
 └── docker-compose.yml
 ```
@@ -258,6 +287,8 @@ ai-repo-analysis-agent/
 | `OPENAI_API_KEY` | — | Required. Your OpenAI API key |
 | `REPO_PATH` | `repo` | Codebase directory (Docker) |
 | `INDEX_PATH` | `data/faiss_index` | FAISS index location (Docker) |
+
+The Web UI can also pass `openai_api_key` per request without storing it in `.env`.
 
 ---
 
@@ -277,16 +308,21 @@ ai-repo-analysis-agent/
 > - `authenticate_user()` validates email and password
 > - `create_access_token()` generates JWT tokens
 > - `/auth/login` and `/auth/register` endpoints in `app/main.py`
-> - JWT config (`JWT_SECRET`, `JWT_ALGORITHM`) in `config.py`
+
+**Follow-up:** `Show me the login endpoint`
+
+**Answer:**
+> The login endpoint is defined in `app/main.py` as `@app.post("/auth/login")`...
 
 ---
 
 ## Roadmap
 
+- [x] Git repository cloning as input
+- [x] Streaming responses in API
+- [x] Web UI for querying
+- [x] Follow-up conversation / chat history
 - [ ] Support for additional embedding providers (local models)
-- [ ] Git repository cloning as input
-- [ ] Streaming responses in API
-- [ ] Web UI for querying
 
 ---
 

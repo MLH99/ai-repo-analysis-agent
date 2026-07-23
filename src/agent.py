@@ -1,4 +1,4 @@
-"""Agenter för kodbasanalys."""
+"""Agents for codebase analysis."""
 
 from pathlib import Path
 
@@ -7,31 +7,25 @@ from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
+from src.conversation import ChatMessage
 from src.graph.agent_graph import run_analysis_graph
 from src.indexer import DEFAULT_INDEX_PATH
+from src.prompts import REACT_SYSTEM_PROMPT
 from src.repo import DEFAULT_REPO_PATH
+from src.openai_context import ProgressCallback, use_openai_api_key
 from src.tools.factory import create_agent_tools
 
 load_dotenv()
 
-REACT_SYSTEM_PROMPT = """Du är en AI-assistent som analyserar mjukvaruprojekt.
 
-Du har tillgång till dessa verktyg:
-- search_codebase: semantisk sökning i indexerad kod
-- read_file: läs en hel fil
-- grep_code: exakt regex-sökning
-- list_files: lista filer i projektet
-
-Arbetsflöde:
-1. Börja med search_codebase eller list_files för överblick
-2. Använd read_file för att läsa relevanta filer i full längd
-3. Använd grep_code för exakta funktions- eller klassnamn
-
-Regler:
-- Skicka användarens fullständiga fråga till search_codebase
-- Basera svaret på faktisk kod
-- Nämn alltid källfiler
-- Svara på svenska om inte användaren skriver på annat språk"""
+def _history_to_messages(history: list[ChatMessage]) -> list:
+    messages = []
+    for message in history:
+        if message["role"] == "user":
+            messages.append(HumanMessage(content=message["content"]))
+        else:
+            messages.append(AIMessage(content=message["content"]))
+    return messages
 
 
 def create_react_analysis_agent(
@@ -40,7 +34,7 @@ def create_react_analysis_agent(
     k: int = 4,
     model: str = "gpt-4o-mini",
 ):
-    """Skapar en flexibel ReAct-agent med alla verktyg."""
+    """Create a flexible ReAct agent with all tools."""
     tools = create_agent_tools(
         repo_path=repo_path,
         index_path=index_path,
@@ -62,8 +56,13 @@ def ask_question(
     k: int = 4,
     model: str = "gpt-4o-mini",
     mode: str = "graph",
+    progress_callback: ProgressCallback | None = None,
+    openai_api_key: str | None = None,
+    history: list[ChatMessage] | None = None,
 ) -> str:
-    """Ställer en fråga till agenten och returnerar svaret som text."""
+    """Ask the agent a question and return the answer as text."""
+    prior_messages = history or []
+
     if mode == "graph":
         return run_analysis_graph(
             question=question,
@@ -71,16 +70,22 @@ def ask_question(
             index_path=index_path,
             k=k,
             model=model,
+            progress_callback=progress_callback,
+            openai_api_key=openai_api_key,
+            history=prior_messages,
         )
 
     if mode == "react":
-        agent = create_react_analysis_agent(
-            repo_path=repo_path,
-            index_path=index_path,
-            k=k,
-            model=model,
-        )
-        result = agent.invoke({"messages": [HumanMessage(content=question)]})
+        with use_openai_api_key(openai_api_key):
+            agent = create_react_analysis_agent(
+                repo_path=repo_path,
+                index_path=index_path,
+                k=k,
+                model=model,
+            )
+            messages = _history_to_messages(prior_messages)
+            messages.append(HumanMessage(content=question))
+            result = agent.invoke({"messages": messages})
         last_message = result["messages"][-1]
 
         if isinstance(last_message, AIMessage):
@@ -88,4 +93,4 @@ def ask_question(
 
         return str(last_message.content)
 
-    raise ValueError(f"Okänt läge: {mode}. Använd 'graph' eller 'react'.")
+    raise ValueError(f"Unknown mode: {mode}. Use 'graph' or 'react'.")

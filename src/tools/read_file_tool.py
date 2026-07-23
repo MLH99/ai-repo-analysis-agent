@@ -17,8 +17,8 @@ def create_read_file_tool(repo_path: str | Path) -> StructuredTool:
         func=read_file,
         name="read_file",
         description=(
-            "Läs en hel fil från kodbasen. "
-            "Använd efter search_codebase när du behöver full kontext, "
-            "t.ex. file_path='app/auth.py'."
+            "Read an entire file from the codebase. "
+            "Use after search_codebase when you need full context, "
+            "e.g. file_path='app/auth.py'."
         ),
     )

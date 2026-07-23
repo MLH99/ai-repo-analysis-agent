@@ -75,26 +75,26 @@ def format_search_results(
 ) -> str:
     """Formaterar sökresultat som läsbar text för agent eller CLI."""
     if not results:
-        return f"Inga relevanta kodblock hittades för frågan: {query}"
+        return f"No relevant code blocks found for query: {query}"
 
-    lines = [f"Sökfråga: {query}", ""]
+    lines = [f"Search query: {query}", ""]
 
     for index, item in enumerate(results, start=1):
         if include_scores and isinstance(item, tuple):
             document, score = item
-            source = document.metadata.get("source", "okänd fil")
-            lines.append(f"--- Resultat {index} | {source} | score: {score:.4f} ---")
+            source = document.metadata.get("source", "unknown file")
+            lines.append(f"--- Result {index} | {source} | score: {score:.4f} ---")
             lines.append(document.page_content.strip())
             lines.append("")
         elif isinstance(item, tuple):
             document, _ = item
-            source = document.metadata.get("source", "okänd fil")
-            lines.append(f"--- Resultat {index} | {source} ---")
+            source = document.metadata.get("source", "unknown file")
+            lines.append(f"--- Result {index} | {source} ---")
             lines.append(document.page_content.strip())
             lines.append("")
         else:
-            source = item.metadata.get("source", "okänd fil")
-            lines.append(f"--- Resultat {index} | {source} ---")
+            source = item.metadata.get("source", "unknown file")
+            lines.append(f"--- Result {index} | {source} ---")
             lines.append(item.page_content.strip())
             lines.append("")
 
@@ -103,7 +103,7 @@ def format_search_results(
 
 def print_search_results(query: str, results: list[Document]) -> None:
     """Skriver ut sökresultat på ett läsbart sätt."""
-    print(f"\nFråga: {query}\n")
+    print(f"\nQuestion: {query}\n")
     print("=" * 60)
     print(format_search_results(query, results))
     print()

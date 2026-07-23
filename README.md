@@ -103,7 +103,6 @@ flowchart TB
     API --> UI
 ```
 
----
 
 ## Quick Start
 
@@ -328,7 +327,7 @@ The Web UI can also pass `openai_api_key` per request without storing it in `.en
 
 ## License
 
-This project is open source. Add a license before publishing (e.g. MIT).
+
 
 ---
 
